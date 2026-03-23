@@ -57,3 +57,10 @@ Notes and tips
 Want me to push the initial commit and enable the workflow for you? If you give me the repository URL (or grant GH CLI access), I can push and create the first release.
 
 Enjoy — walk around and tweak the shaders!
+
+Live demo
+--------
+
+You can view the live project here:
+
+https://ayush4u.github.io/neonbrew/
