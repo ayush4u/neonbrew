@@ -33,7 +33,8 @@ function getSignTexture() {
   const draw = (style, lw) => {
     x.font = '600 128px "Trebuchet MS", "Arial Rounded MT Bold", Verdana, sans-serif'; x.textBaseline = 'middle'; x.textAlign = 'left';
     x.fillStyle = style; x.strokeStyle = style; x.lineWidth = lw; x.lineCap = 'round'; x.lineJoin = 'round';
-    x.fillText('NEON BREW', 60, 134);
+    const tw = x.measureText('NEON BREW').width, k = Math.min(1, 700 / tw); // keep clear of the cup on any font
+    x.save(); x.translate(50, 134); x.scale(k, 1); x.fillText('NEON BREW', 0, 0); x.restore();
     // cup icon at the right
     x.beginPath(); x.moveTo(800, 92); x.lineTo(812, 190); x.quadraticCurveTo(815, 206, 832, 206); x.lineTo(902, 206);
     x.quadraticCurveTo(919, 206, 922, 190); x.lineTo(934, 92); x.closePath(); x.stroke();
