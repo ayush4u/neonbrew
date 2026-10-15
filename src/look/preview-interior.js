@@ -44,7 +44,7 @@ export function addInteriorBlockout(scene) {
   // roof + deck (exterior look)
   const roofGeo = new THREE.CylinderGeometry(1, 1, D + 0.9, 32, 1, false, Math.PI / 2, Math.PI); roofGeo.rotateX(Math.PI / 2);
   add(roofGeo, 'roof', 0, H + T - 0.06, 0.05, createToonMaterial('#f0a090')).scale.set((W + 0.9) / 2, 0.75, 1);
-  add(new THREE.BoxGeometry(W + 2.4, 0.4, D + 4.5), 'deck', 0, -0.32, 1.6, createToonMaterial(PALETTE.pier));
+  addIsland(g, archHoleX, D);
 
   // counter along the back-left, pastel panels + light wood top
   add(new THREE.BoxGeometry(2.9, 0.95, 0.6), 'counter_panel', -0.9, 0.475, -1.0);
@@ -105,8 +105,8 @@ export function addInteriorBlockout(scene) {
     shot(aspect) {
       const portrait = aspect < 1;
       return portrait
-        ? { position: toWorld(-0.3, 1.9, 10.5), target: toWorld(-0.45, 1.7, -0.5) }
-        : { position: toWorld(0.4, 1.7, 7.4), target: toWorld(-0.2, 1.45, -0.5) };
+        ? { position: toWorld(-0.3, 2.8, 11.5), target: toWorld(-0.45, 1.2, 0.0) }
+        : { position: toWorld(0.4, 2.5, 8.2), target: toWorld(-0.2, 1.1, -0.5) };
     },
   };
 }
@@ -118,4 +118,58 @@ function outline(R, spring, t) { // arch-shaped band of thickness t
   const s = new THREE.Shape(); s.moveTo(-R, 0); s.lineTo(-R + t, 0); s.lineTo(-R + t, spring);
   s.absarc(0, spring, R - t, Math.PI, 0, true); s.lineTo(R - t, 0); s.lineTo(R, 0); s.lineTo(R, spring);
   s.absarc(0, spring, R, 0, Math.PI, false); s.lineTo(-R, 0); return s;
+}
+
+// Round, slightly domed island (named `ground`, styled by applyLook) + entrance props.
+// Island centre sits a little in front of the café so the front yard has room; shore radius 6.
+function addIsland(g, doorX, D) {
+  const R = 6, cz = 1.0;
+  const geo = new THREE.RingGeometry(0.02, R, 72, 18); geo.rotateX(-Math.PI / 2);
+  const p = geo.attributes.position, v = new THREE.Vector3();
+  for (let i = 0; i < p.count; i++) {
+    v.fromBufferAttribute(p, i); const a = Math.atan2(v.z, v.x), r = Math.hypot(v.x, v.z) / R;
+    const wob = 1 + 0.035 * Math.sin(a * 3 + 0.7) + 0.025 * Math.sin(a * 7 + 2.1) + 0.012 * Math.sin(a * 13);
+    const y = -0.03 - 0.62 * Math.pow(r, 2.4); // gentle dome, edge dips under the water line (local -0.45)
+    p.setXYZ(i, v.x * wob, y, v.z * wob);
+  }
+  geo.computeVertexNormals();
+  const isl = new THREE.Mesh(geo, new THREE.MeshBasicMaterial()); isl.name = 'ground'; isl.position.set(0, 0, cz); g.add(isl);
+  const yAt = (x, z) => -0.03 - 0.62 * Math.pow(Math.min(1, Math.hypot(x, z - cz) / R), 2.4);
+  const B = () => new THREE.MeshBasicMaterial();
+  const put = (geo, name, x, z, y = 0, mat = B()) => { const m = new THREE.Mesh(geo, mat); m.name = name; m.position.set(x, yAt(x, z) + y, z); g.add(m); return m; };
+  // stepping-stone path from the arch out toward the beach
+  const stone = new THREE.IcosahedronGeometry(1, 1);
+  [[0.0, 2.75], [0.2, 3.45], [-0.05, 4.15], [0.3, 4.85], [0.05, 5.55]].forEach(([x, z], i) => {
+    const s = put(stone, `path_stone_${i}`, doorX + x, z, -0.01);
+    s.scale.set(0.34 + 0.04 * (i % 2), 0.06, 0.28); s.rotation.y = i * 0.9;
+  });
+  // rounded rocks
+  const rock = new THREE.IcosahedronGeometry(1, 1);
+  [[2.9, 3.3, 0.32], [3.3, 3.0, 0.2], [-3.1, 4.4, 0.28], [-2.75, 4.75, 0.16], [3.6, 5.2, 0.24], [-4.6, 4.2, 0.45], [-5.2, 3.0, 0.35], [4.8, 4.0, 0.42], [5.4, 2.4, 0.3], [-3.6, 6.0, 0.3], [4.0, 6.0, 0.26], [-5.8, 0.8, 0.4], [5.9, 0.2, 0.36]].forEach(([x, z, r], i) => {
+    const m = put(rock, `rock_${i}`, x, z, r * 0.25); m.scale.set(r, r * 0.7, r * 0.9); m.rotation.set(0.3 * i, i, 0);
+  });
+  // shells on the sand
+  const shellMat = createToonMaterial('#ffe0d8');
+  [[1.6, 5.6], [-1.9, 6.0], [2.4, 6.1], [-0.9, 6.3]].forEach(([x, z], i) => {
+    const m = put(new THREE.SphereGeometry(0.09, 8, 4, 0, Math.PI * 2, 0, Math.PI / 2), `shell_${i}`, x, z, -0.01, shellMat);
+    m.scale.set(1, 0.55, 1.25); m.rotation.y = i * 1.3;
+  });
+  // potted plants flanking the door
+  const potMat = createToonMaterial(PALETTE.pot);
+  [[doorX - 1.55, 2.6, 1.0], [doorX + 1.45, 2.55, 0.85], [2.1, 2.7, 0.7]].forEach(([x, z, k], i) => {
+    put(new THREE.CylinderGeometry(0.2 * k, 0.15 * k, 0.32 * k, 12), `pot_${i}`, x, z, 0.16 * k, potMat);
+    const top = 0.32 * k;
+    [[0, 0.22, 0, 0.22], [0.1, 0.14, 0.06, 0.16], [-0.1, 0.13, -0.04, 0.15], [0.02, 0.36, -0.03, 0.14]].forEach(([dx, dy, dz, r], j) => {
+      const b = new THREE.SphereGeometry(r * k, 10, 8); b.translate(dx * k, dy * k, dz * k);
+      put(b, `plant_pot_${i}_${j}`, x, z, top);
+    });
+  });
+  // grass tufts (little cone fans) around the building
+  const blade = new THREE.ConeGeometry(0.04, 0.26, 4); blade.translate(0, 0.13, 0);
+  [[-2.9, 2.5], [-3.2, 1.0], [2.95, 2.3], [3.3, 0.5], [-1.9, 3.3], [1.3, 3.4], [2.3, 4.0], [-2.4, 3.8], [0.9, 2.6], [-3.4, -0.8], [3.2, -1.4]].forEach(([x, z], i) => {
+    for (let k = 0; k < 3; k++) {
+      const m = put(blade, `plant_tuft_${i}_${k}`, x + (k - 1) * 0.06, z + (k % 2) * 0.04, -0.02);
+      m.rotation.set(0, i, (k - 1) * 0.35);
+    }
+  });
 }

@@ -15,7 +15,7 @@ export const PALETTE = {
   coffee: new Color('#ffd090'),
   flowerA: new Color('#ff9ab8'), flowerB: new Color('#ffd878'), flowerC: new Color('#b8e890'),
   pot: new Color('#e89878'),
-  pier: new Color('#e8c090'), pierDark: new Color('#c89860'),
+  pier: new Color('#e8c090'), stone: new Color('#d8c8b0'), rock: new Color('#c4b4a4'), plant: new Color('#5cc850'), pot: new Color('#e89070'), patio: new Color('#f4a088'), pierDark: new Color('#c89860'),
 };
 export const FOG_COLOR = new Color('#ffb898');
 // sun low near horizon, slightly to the right for a sunset angle
