@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import { createSky } from './sky.js';
 import { createWaterMaterial } from './water.js';
-import { createGroundMaterial, createAwningMaterial } from './toon.js';
+import { createGroundMaterial, createAwningMaterial, createToonMaterial, createPlantMaterial } from './toon.js';
 import { createPalmMaterial } from './palm.js';
-import { createStringLightsMaterial, createNeonMaterial, createWindowMaterial } from './emissive.js';
+import { createStringLightsMaterial, createNeonMaterial, createWindowMaterial, createNeonSignMaterial } from './emissive.js';
 import { PALETTE, FOG_COLOR } from './palette.js';
 import { INTERIOR, createInteriorLighting, createInteriorToonMaterial, createGlassMaterial,
   createLampShadeMaterial, createBulbMaterial, createWallNeonMaterial } from './interior.js';
@@ -12,7 +12,7 @@ import { INTERIOR, createInteriorLighting, createInteriorToonMaterial, createGla
 const INTERIOR_RULES = [
   ['wall_', 'wall'], ['ceiling', 'ceiling'], ['floor', 'floor'],
   ['counter_top', 'wood'], ['counter_panel', 'pink'], ['counter_', 'wood'],
-  ['stool_seat', 'pink'], ['stool_', 'wood'], ['shelf_', 'woodLight'], ['table_', 'woodLight'], ['chair_', 'pink'],
+  ['stool_seat', 'pink'], ['stool_', 'wood'], ['shelf_', 'woodLight'], ['table_', 'woodLight'], ['chair_patio', 'patio'], ['chair_', 'pink'],
 ];
 
 /** Assigns look materials by mesh name and adds the sky. Returns { update(t), materials }. */
@@ -21,9 +21,10 @@ export function applyLook(scene, { islandRadius = 6 } = {}) {
     water: createWaterMaterial({ islandRadius }),
     ground: createGroundMaterial({ islandRadius }),
     lights: createStringLightsMaterial(),
-    sign: createNeonMaterial({ color: PALETTE.neonPink, intensity: 1.5 }),
+    sign: createNeonSignMaterial(),
     window: createWindowMaterial(),
     awning: createAwningMaterial(),
+    stone: createToonMaterial(PALETTE.stone), rock: createToonMaterial(PALETTE.rock), plant: createPlantMaterial(PALETTE.plant),
   };
   const lighting = createInteriorLighting();
   const im = {
@@ -33,11 +34,12 @@ export function applyLook(scene, { islandRadius = 6 } = {}) {
     wood: createInteriorToonMaterial(lighting, INTERIOR.wood),
     woodLight: createInteriorToonMaterial(lighting, INTERIOR.woodLight),
     pink: createInteriorToonMaterial(lighting, INTERIOR.pink),
+    patio: createInteriorToonMaterial(lighting, PALETTE.patio),
     glass: createGlassMaterial(), shade: createLampShadeMaterial(),
     bulb: createBulbMaterial(), neonWall: createWallNeonMaterial(),
   };
   const roomBox = new THREE.Box3(); const lampList = []; let roomFrame = null;
-  const palms = []; const timed = [m.water, m.lights, m.sign, im.bulb, im.neonWall];
+  const palms = []; const timed = [m.plant, m.water, m.lights, m.sign, im.bulb, im.neonWall];
   scene.traverse((o) => {
     if (!o.isMesh) return; const n = o.name || '';
     if (n === 'ground') o.material = m.ground;
@@ -50,11 +52,14 @@ export function applyLook(scene, { islandRadius = 6 } = {}) {
     } else if (n.startsWith('lights_')) o.material = m.lights;
     else if (n.startsWith('window_')) o.material = m.window;
     else if (n === 'awning') o.material = m.awning;
+    else if (n.startsWith('path_stone_')) o.material = m.stone;
+    else if (n.startsWith('rock_')) o.material = m.rock;
+    else if (n.startsWith('plant_')) o.material = m.plant;
     else if (n.startsWith('glass_')) { o.material = im.glass; o.renderOrder = 10; }
     else if (n.startsWith('lamp_bulb')) { o.material = im.bulb; lampList.push(o); }
     else if (n.startsWith('lamp_shade')) o.material = im.shade;
     else if (n.startsWith('lamp_')) o.material = im.wood;
-    else if (n.startsWith('neon_wall')) o.material = im.neonWall;
+    else if (n.startsWith('neon_wall')) o.material = /^(Plane|Shape|Box)Geometry$/.test(o.geometry.type) ? m.sign : im.neonWall; // flat boards get text
     else { const r = INTERIOR_RULES.find(([p]) => n.startsWith(p)); if (r) {
       o.material = im[r[1]];
       if (r[1] === 'floor' || r[1] === 'ceiling') {
