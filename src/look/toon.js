@@ -26,3 +26,12 @@ export function createToonMaterial(color) {
     fragmentShader: `${TOON} uniform vec3 uColor; varying vec3 vN; void main(){ gl_FragColor = vec4(toon(uColor, vN),1.0); }`,
   });
 }
+// Striped canopy: stripes along object-space x.
+export function createAwningMaterial({ a = PALETTE.awningA, b = PALETTE.awningB, stripes = 7.0 } = {}) {
+  return new THREE.ShaderMaterial({ side: THREE.DoubleSide,
+    uniforms: { uSun: { value: sun }, uShadow: { value: PALETTE.shadow }, uA: { value: a }, uB: { value: b }, uS: { value: stripes } },
+    vertexShader: `varying vec3 vN; varying vec2 vUv; void main(){ vUv = uv; vN = normalize(mat3(modelMatrix)*normal); gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+    fragmentShader: `${TOON} uniform vec3 uA, uB; uniform float uS; varying vec3 vN; varying vec2 vUv;
+      void main(){ vec3 base = mix(uA, uB, step(0.5, fract(vUv.x*uS))); gl_FragColor = vec4(toon(base, gl_FrontFacing ? vN : -vN),1.0); }`,
+  });
+}

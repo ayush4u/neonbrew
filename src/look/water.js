@@ -19,16 +19,16 @@ export function createWaterMaterial({ islandRadius = 6 } = {}) {
         vec3 col = mix(uShallow, uDeep, smoothstep(0.0, 9.0, d));
         // toon glints
         float g = n(vW.xz*1.6 + vec2(uTime*0.3, uTime*0.2)) * n(vW.xz*2.3 - uTime*0.25);
-        col += step(0.62, g) * 0.14 * (1.0 - smoothstep(20.0, 50.0, r));
+        col += step(0.62, g) * 0.05 * (1.0 - smoothstep(20.0, 50.0, r));
         // foam rings travelling outward
         float wob = n(vW.xz*1.5 + uTime*0.4)*0.35;
         float ring = fract((d + wob)*0.7 - uTime*0.35);
         float rings = step(0.86, ring) * smoothstep(3.2, 0.5, d);
         float edge = step(d + wob*0.8, 0.45);
-        col = mix(col, uFoam, max(edge, rings*0.85));
+        col = mix(col, uFoam, max(edge*0.7, rings*0.45));
         // horizon fade to sky
         vec3 v = cameraPosition - vW; float fres = pow(1.0 - clamp(normalize(v).y, 0.0, 1.0), 4.0);
-        col = mix(col, uSky, fres*0.3);
+        col = mix(col, uSky, fres*0.2);
         col = mix(col, uSky, smoothstep(60.0, 150.0, r));
         gl_FragColor = vec4(col, 1.0);
       }`,

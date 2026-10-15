@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { applyLook, setupPost, createToonMaterial, PALETTE } from './index.js';
+import { applyLook, setupPost, createToonMaterial, createNeonMaterial, PALETTE } from './index.js';
 
 const R = 6;
 const scene = new THREE.Scene();
@@ -22,11 +22,26 @@ pts.push(new THREE.Vector2(0.01, 1.15));
 const ground = new THREE.Mesh(new THREE.LatheGeometry(pts, 72), new THREE.MeshBasicMaterial());
 ground.name = 'ground'; scene.add(ground);
 
-const cafe = new THREE.Mesh(new THREE.BoxGeometry(3.2, 2.2, 2.4), createToonMaterial('#f3dcf0'));
+const cafe = new THREE.Mesh(new THREE.BoxGeometry(3.2, 2.2, 2.4), createToonMaterial(PALETTE.woodWall));
 cafe.position.set(0, 2.05, -1.0); cafe.name = 'cafe'; scene.add(cafe);
-const roof = new THREE.Mesh(new THREE.ConeGeometry(2.7, 1.35, 4), createToonMaterial('#ff7aa8'));
+const roof = new THREE.Mesh(new THREE.ConeGeometry(2.7, 1.35, 4), createToonMaterial(PALETTE.woodDark));
 roof.position.set(0, 3.75, -1.0); roof.rotation.y = Math.PI / 4; scene.add(roof);
 
+// striped awning over the front
+const awning = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 0.9), new THREE.MeshBasicMaterial());
+awning.position.set(0, 2.35, 0.55); awning.rotation.x = -Math.PI / 2 + 0.55; awning.name = 'awning'; scene.add(awning);
+// counter + glowing coffee cup with steam
+const counter = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.55, 0.45), createToonMaterial(PALETTE.woodDark));
+counter.position.set(0, 1.25, 0.6); scene.add(counter);
+const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.1, 0.22, 12), createToonMaterial('#f2e6d6'));
+cup.position.set(0.5, 1.64, 0.6); scene.add(cup);
+const coffee = new THREE.Mesh(new THREE.CircleGeometry(0.115, 12), createNeonMaterial({ color: PALETTE.coffee, intensity: 1.2 }));
+coffee.rotation.x = -Math.PI / 2; coffee.position.set(0.5, 1.755, 0.6); scene.add(coffee);
+const steam = [];
+for (let i = 0; i < 3; i++) {
+  const s = new THREE.Mesh(new THREE.SphereGeometry(0.06 - i * 0.012, 8, 6), new THREE.MeshBasicMaterial({ color: '#e8d8d0', transparent: true, opacity: 0.45 }));
+  s.position.set(0.5, 1.9 + i * 0.13, 0.6); scene.add(s); steam.push(s);
+}
 const sign = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.42, 0.1), new THREE.MeshBasicMaterial());
 sign.position.set(0, 2.78, 0.27); sign.name = 'sign'; scene.add(sign);
 
@@ -113,7 +128,7 @@ const post = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.9, 0.12), createToonMa
 post.position.set(5.6, 1.2, 3.0); scene.add(post);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-renderer.setClearColor(PALETTE.skyHorizon);
+renderer.setClearColor(PALETTE.skyTop);
 document.body.appendChild(renderer.domElement);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.set(0, 1.5, 0); controls.enableDamping = true; controls.maxDistance = 40; controls.minPolarAngle = 0.2; controls.maxPolarAngle = Math.PI * 0.48; controls.update();
@@ -126,7 +141,8 @@ addEventListener('resize', () => {
 const clock = new THREE.Clock();
 (function loop() {
   requestAnimationFrame(loop);
-  look.update(clock.getElapsedTime());
+  const t = clock.getElapsedTime(); look.update(t);
+  steam.forEach((s, i) => { s.position.x = 0.5 + Math.sin(t * 2 + i) * 0.04; s.material.opacity = 0.3 + 0.15 * Math.sin(t * 1.5 + i); });
   controls.update();
   postFx.composer.render();
 })();

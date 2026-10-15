@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { PALETTE } from './palette.js';
 // Emissive materials output > 1.0 so only they cross the bloom threshold.
-export function createStringLightsMaterial({ color = PALETTE.lightWarm, intensity = 3.0 } = {}) {
+export function createStringLightsMaterial({ color = PALETTE.lightWarm, intensity = 1.7 } = {}) {
   return new THREE.ShaderMaterial({
     uniforms: { uTime: { value: 0 }, uColor: { value: color.clone() }, uIntensity: { value: intensity } },
     vertexShader: `varying float vSeed; void main(){ vec4 w = modelMatrix*vec4(position,1.0);
@@ -20,6 +20,6 @@ export function createNeonMaterial({ color = PALETTE.neonPink, intensity = 4.0 }
         gl_FragColor = vec4(uColor*uIntensity*f, 1.0); }`,
   });
 }
-export function createWindowMaterial({ color = PALETTE.window, intensity = 1.6 } = {}) {
+export function createWindowMaterial({ color = PALETTE.window, intensity = 1.15 } = {}) {
   return new THREE.MeshBasicMaterial({ color: color.clone().multiplyScalar(intensity), toneMapped: false });
 }
