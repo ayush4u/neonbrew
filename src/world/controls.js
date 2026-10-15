@@ -65,7 +65,7 @@ export function createWalkControls(camera, island, { eye = 1.45, speed = 2.6 } =
     const s = (keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0) + joy.x;
     if (keys.has('KeyQ')) yaw += dt * 1.8; if (keys.has('KeyE')) yaw -= dt * 1.8;
     fwdV.set(Math.sin(yaw), 0, Math.cos(yaw)); rightV.set(-Math.cos(yaw), 0, Math.sin(yaw));
-    const want = fwdV.multiplyScalar(f).add(rightV.multiplyScalar(-s)); if (want.lengthSq() > 1) want.normalize();
+    const want = fwdV.multiplyScalar(f).add(rightV.multiplyScalar(s)); if (want.lengthSq() > 1) want.normalize();
     vel.lerp(want.multiplyScalar(speed), 1 - Math.exp(-10 * dt));
     const next = pos.clone().addScaledVector(vel, dt);
     collide(next);
