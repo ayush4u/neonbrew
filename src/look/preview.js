@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { addInteriorBlockout } from './preview-interior.js';
 import { applyLook, setupPost, createToonMaterial, createNeonMaterial, PALETTE } from './index.js';
 
 const R = 6;
@@ -166,16 +167,21 @@ for (let i = 0, n = 17; i < n; i++) {
 const ang = Math.atan2(2.6, 4.4);
 dock.position.set(Math.cos(ang) * 4.4, 0, Math.sin(ang) * 4.4); dock.rotation.y = -ang; scene.add(dock);
 
+const interior = addInteriorBlockout(scene);
+const shotMode = new URLSearchParams(location.search).get('shot');
+function applyShot() { if (shotMode !== 'interior') return; const s = interior.shot(innerWidth / innerHeight);
+  camera.position.copy(s.position); controls.target.copy(s.target); controls.update(); }
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 renderer.setClearColor(PALETTE.skyHorizon);
 document.body.appendChild(renderer.domElement);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.set(0, 1.5, 0); controls.enableDamping = true; controls.maxDistance = 40; controls.minPolarAngle = 0.2; controls.maxPolarAngle = Math.PI * 0.48; controls.update();
+if (shotMode === 'interior') { controls.maxDistance = 200; controls.maxPolarAngle = Math.PI * 0.6; applyShot(); }
 
 const look = applyLook(scene, { islandRadius: R });
 const postFx = setupPost(renderer, scene, camera);
 addEventListener('resize', () => {
-  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); postFx.setSize();
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); postFx.setSize(); applyShot();
 });
 const clock = new THREE.Clock();
 (function loop() {
