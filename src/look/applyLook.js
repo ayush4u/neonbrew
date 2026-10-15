@@ -12,7 +12,7 @@ export function applyLook(scene, { islandRadius = 6 } = {}) {
     water: createWaterMaterial({ islandRadius }),
     ground: createGroundMaterial({ islandRadius }),
     lights: createStringLightsMaterial(),
-    sign: createNeonMaterial({ color: PALETTE.neonPink, intensity: 1.35 }),
+    sign: createNeonMaterial({ color: PALETTE.neonPink, intensity: 1.5 }),
     window: createWindowMaterial(),
     awning: createAwningMaterial(),
   };
@@ -32,6 +32,6 @@ export function applyLook(scene, { islandRadius = 6 } = {}) {
   });
   const sky = createSky(); scene.add(sky); timed.push(sky.material);
   scene.background = PALETTE.skyHorizon.clone();
-  scene.fog = new THREE.Fog(FOG_COLOR.clone(), 45, 160);
+  scene.fog = new THREE.Fog(FOG_COLOR.clone(), 55, 180);
   return { materials: { ...m, palms, sky: sky.material }, update(t) { for (const x of timed) x.uniforms.uTime.value = t; } };
 }

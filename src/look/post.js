@@ -13,13 +13,14 @@ export function isLowPower() {
 export function setupPost(renderer, scene, camera, { lowPower = isLowPower() } = {}) {
   const pr = Math.min(window.devicePixelRatio || 1, lowPower ? 1.5 : 2);
   renderer.setPixelRatio(pr);
-  renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.82;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
   const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: lowPower ? 0 : 4 });
   const composer = new EffectComposer(renderer, rt);
   composer.setPixelRatio(pr);
   composer.addPass(new RenderPass(scene, camera));
   const bloomScale = lowPower ? 0.5 : 1;
-  const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), lowPower ? 0.3 : 0.38, lowPower ? 0.2 : 0.28, 1.05);
+  // keep v2-ish low bloom: only emissives glow, no washout
+  const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), lowPower ? 0.28 : 0.35, lowPower ? 0.18 : 0.25, 1.08);
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
   function setSize(w = innerWidth, h = innerHeight) {

@@ -1,13 +1,22 @@
 import { Color } from 'three';
 export const PALETTE = {
-  skyTop: new Color('#140e30'), skyMid: new Color('#4a2f6e'), skyHorizon: new Color('#b07a7e'),
-  waterDeep: new Color('#0f3550'), waterShallow: new Color('#2f7f86'), foam: new Color('#cfc4c4'),
-  sand: new Color('#c8a27a'), grass: new Color('#5c8f5a'), shadow: new Color('#3a2a50'),
-  palmTrunk: new Color('#8a5c45'), palmLeaf: new Color('#3d8a60'),
-  lightWarm: new Color('#ffb860'), neonPink: new Color('#e86a9a'), neonCyan: new Color('#4ff0ff'),
-  window: new Color('#ffa94a'),
-  woodWall: new Color('#9a6640'), woodDark: new Color('#5a3626'), awningA: new Color('#e9dcc4'), awningB: new Color('#b5524a'),
-  coffee: new Color('#ffcf8a'),
+  // peach-gold → soft pink → light lavender (golden hour)
+  skyTop: new Color('#b49cf0'), skyMid: new Color('#ff90b0'), skyHorizon: new Color('#ffb870'),
+  // brighter friendly turquoise water + soft cream foam
+  waterDeep: new Color('#1890b8'), waterShallow: new Color('#38d0c8'), foam: new Color('#fff5ee'),
+  // saturated cheerful grass & warm sand
+  sand: new Color('#f8d088'), grass: new Color('#4cc040'), shadow: new Color('#b07868'),
+  palmTrunk: new Color('#c48858'), palmLeaf: new Color('#30a848'),
+  lightWarm: new Color('#ffc878'), neonPink: new Color('#ff8ab8'), neonCyan: new Color('#7af0ff'),
+  window: new Color('#ffc070'),
+  // lighter warm wood, cream trim, pastel accents
+  woodWall: new Color('#e8b07a'), woodDark: new Color('#c89868'), woodTrim: new Color('#f5ebe0'),
+  awningA: new Color('#fff0e0'), awningB: new Color('#f06470'),
+  coffee: new Color('#ffd090'),
+  flowerA: new Color('#ff9ab8'), flowerB: new Color('#ffd878'), flowerC: new Color('#b8e890'),
+  pot: new Color('#e89878'),
+  pier: new Color('#e8c090'), pierDark: new Color('#c89860'),
 };
-export const FOG_COLOR = new Color('#6e4a66');
-export const SUN_DIR = [0.4, 0.6, 0.35];
+export const FOG_COLOR = new Color('#ffb898');
+// sun low near horizon, slightly to the right for a sunset angle
+export const SUN_DIR = [0.55, 0.22, 0.45];
