@@ -21,6 +21,7 @@ const sun = new THREE.DirectionalLight('#ffd2a8', 1.6); sun.position.set(9, 14, 
 sun.shadow.mapSize.set(1024, 1024); Object.assign(sun.shadow.camera, { left: -9, right: 9, top: 9, bottom: -9 }); scene.add(sun);
 
 const island = buildIsland(scene);
+island.ready.then((names) => { window.__nbProps = names; console.log(`[world] props ready: ${names.length} meshes`); });
 const look = applyLook(scene, { islandRadius: ISLAND_RADIUS });
 const post = setupPost(renderer, scene, camera);
 const walk = createWalkControls(camera, island);
@@ -28,7 +29,7 @@ const shop = createShop(camera, island);
 
 // screenshot / deep-link helpers: ?at=outside|door|inside|counter  &buy=latte
 const q = new URLSearchParams(location.search);
-const spots = { outside: [0, 6.8, Math.PI, -0.06], door: [0, 2.0, Math.PI, -0.05], inside: [1.2, 0.2, Math.PI + 0.45, -0.12], counter: [0, -0.6, Math.PI, -0.18] };
+const spots = { outside: [0, 6.8, Math.PI, -0.06], door: [0, 2.0, Math.PI, -0.05], inside: [1.2, 0.2, Math.PI + 0.45, -0.12], counter: [0, -0.6, Math.PI, -0.18], window: [-1.48, 2.3, Math.PI, -0.1], inwindow: [1.0, -0.4, -1.45, 0.02] };
 if (spots[q.get('at')]) walk.place(...spots[q.get('at')]);
 if (q.get('buy')) setTimeout(() => shop.buy(q.get('buy')), 1500);
 if (q.get('menu')) setTimeout(() => shop.openMenu(), 1500);
