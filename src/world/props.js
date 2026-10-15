@@ -17,6 +17,7 @@ const toon = (c) => { if (!toonCache.has(c)) toonCache.set(c, createToonMaterial
 /**
  * Place a GLB prop: normalised so its base sits at y and it is centred on x/z.
  * opts: { x, y, z, ry, h (target height) | w (target max footprint), colors: {materialName: '#hex'}, toonAll: '#hex' }
+ * opts.parts: {materialName: meshName} renames individual primitives (e.g. stool seat vs legs).
  * Meshes are named `${name}` (or `${name}_${k}` when the model has several parts).
  */
 export async function placeProp(parent, file, name, opts = {}, names = []) {
@@ -29,7 +30,8 @@ export async function placeProp(parent, file, name, opts = {}, names = []) {
   g.position.set(opts.x ?? 0, opts.y ?? 0, opts.z ?? 0); g.rotation.y = opts.ry ?? 0;
   const meshes = []; inner.traverse((o) => { if (o.isMesh) meshes.push(o); });
   meshes.forEach((m, k) => {
-    m.name = meshes.length > 1 ? `${name}_${k}` : name; names.push(m.name);
+    const mn = Array.isArray(m.material) ? m.material[0].name : m.material.name;
+    m.name = opts.parts?.[mn] ?? (meshes.length > 1 ? `${name}_${k}` : name); names.push(m.name);
     m.castShadow = m.receiveShadow = true;
     const swap = (mt) => {
       const col = opts.colors?.[mt.name] ?? opts.toonAll;

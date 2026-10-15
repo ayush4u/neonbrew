@@ -21,8 +21,12 @@ const sun = new THREE.DirectionalLight('#ffd2a8', 1.6); sun.position.set(9, 14, 
 sun.shadow.mapSize.set(1024, 1024); Object.assign(sun.shadow.camera, { left: -9, right: 9, top: 9, bottom: -9 }); scene.add(sun);
 
 const island = buildIsland(scene);
-island.ready.then((names) => { window.__nbProps = names; console.log(`[world] props ready: ${names.length} meshes`); });
-const look = applyLook(scene, { islandRadius: ISLAND_RADIUS });
+// GLB props load async; apply the name-based look once they are in the scene so they get materials too
+let look = { update() {} };
+island.ready.then((names) => {
+  look = applyLook(scene, { islandRadius: ISLAND_RADIUS });
+  window.__nbProps = names; console.log(`[world] props ready: ${names.length} meshes`);
+});
 const post = setupPost(renderer, scene, camera);
 const walk = createWalkControls(camera, island);
 const shop = createShop(camera, island);

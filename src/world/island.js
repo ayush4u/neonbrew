@@ -19,14 +19,17 @@ function cyl(name, rt, rb, h, color, x, y, z, parent, seg = 32) {
   m.name = name; m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; parent.add(m); return m;
 }
 
-/** dome height of the island at a flat distance r (matches the lathe below) */
-export function groundHeight(r) {
+function domeHeight(r) {
   if (r >= R) return -0.25;
-  // invert r = R*cos(a)*(1-0.08t) approximately
   const t = Math.acos(Math.min(1, r / R)) / (Math.PI / 2);
   return Math.max(-0.25, Math.sin(t * Math.PI * 0.5) * 1.35 - 0.25);
 }
-
+/** island height at flat distance r: dome + a soft grassy plateau the café sits on (matches the lathe below) */
+export function groundHeight(r) {
+  const plateau = FLOOR_Y - 0.03, k = Math.min(1, Math.max(0, (r - 3.9) / 1.1));
+  const mound = plateau - (plateau - domeHeight(r)) * (k * k * (3 - 2 * k));
+  return Math.max(domeHeight(r), mound);
+}
 
 /** Arched opening path (rectangle + semicircle top). */
 function archHole(cx, y0, w, spring) {
@@ -78,15 +81,69 @@ export function buildIsland(scene) {
   const water = new THREE.Mesh(new THREE.PlaneGeometry(420, 420, 64, 64), new THREE.MeshBasicMaterial());
   water.name = 'water'; water.rotation.x = -Math.PI / 2; world.add(water);
   const pts = [];
-  for (let i = 0; i <= 24; i++) {
-    const t = i / 24;
-    pts.push(new THREE.Vector2(Math.max(R * Math.cos(t * Math.PI * 0.5) * (1 - 0.08 * t), 0.05), Math.sin(t * Math.PI * 0.5) * 1.35 - 0.25));
-  }
-  pts.push(new THREE.Vector2(0.01, 1.15));
+  for (let i = 0; i <= 48; i++) { const r = R * (1 - i / 48); pts.push(new THREE.Vector2(Math.max(r, 0.01), groundHeight(r))); }
   const ground = new THREE.Mesh(new THREE.LatheGeometry(pts, 128), new THREE.MeshBasicMaterial());
   ground.name = 'ground'; ground.receiveShadow = true; world.add(ground);
 
-  cyl('plaza', 3.9, 4.1, 0.25, '#e9c9a0', 0, FLOOR_Y - 0.12, -0.2, world, 48);
+  // ---------- natural surroundings: stepping-stone path, rocks, shells, plants ----------
+  const rnd = (() => { let x = 7; return () => ((x = (x * 16807) % 2147483647) / 2147483647); })();
+  const gy = (x, z) => groundHeight(Math.hypot(x, z));
+  const nature = new THREE.Group(); nature.name = 'nature'; world.add(nature);
+  // chunky stone base so the café grows out of the grass instead of sitting on a slab
+  P(box('cafe_base', CAFE.w + 0.36, 0.5, CAFE.d + 0.36, '#d8c3a5', CAFE.x, FLOOR_Y - 0.22, CAFE.z, world));
+  const stoneMat = ['#e9dcc6', '#dccbb0', '#f1e6d2'];
+  let si = 0;
+  const stone = (x, z, sc = 1, y) => {
+    const g = new THREE.CylinderGeometry(0.26 * sc, 0.29 * sc, 0.07, 9); g.scale(1, 1, 0.75 + rnd() * 0.3);
+    const m = new THREE.Mesh(g, mat(stoneMat[si % 3])); m.name = `path_stone_${si++}`; m.rotation.y = rnd() * 3;
+    m.position.set(x, (y ?? gy(x, z)) + 0.02, z); m.receiveShadow = true; nature.add(P(m));
+  };
+  // path from the door down to the dock (gentle wiggle)
+  for (let k = 0; k < 11; k++) { const z = 1.25 + k * 0.38, x = Math.sin(k * 0.9) * 0.18 + (k % 2 ? 0.12 : -0.12); stone(x, z, 0.95 + rnd() * 0.25, z < 3.9 ? FLOOR_Y - 0.03 : undefined); }
+  // little stone pads under the patio tables
+  [[-2.7, 1.9], [2.7, 1.9]].forEach(([x, z]) => { for (let k = 0; k < 5; k++) { const a = k * 1.26 + rnd(); stone(x + Math.cos(a) * 0.55, z + Math.sin(a) * 0.55, 1.1); } stone(x, z, 1.3); });
+  // rocks on the shore and by the entrance
+  let ri = 0;
+  const rock = (x, z, sc) => {
+    const g = new THREE.DodecahedronGeometry(sc, 0); g.scale(1, 0.6 + rnd() * 0.3, 0.8 + rnd() * 0.4);
+    const m = new THREE.Mesh(g, mat(['#b9ab9b', '#a89a8c', '#c9bcaa'][ri % 3])); m.name = `rock_${ri++}`;
+    m.position.set(x, gy(x, z) + sc * 0.25, z); m.rotation.set(rnd(), rnd() * 6, rnd() * 0.4); m.castShadow = true; nature.add(P(m));
+  };
+  for (let k = 0; k < 16; k++) { const a = (k / 16) * Math.PI * 2 + rnd() * 0.3; if (Math.abs(a - Math.PI / 2) < 0.3) continue; const r = 5.35 + rnd() * 0.5; rock(Math.cos(a) * r, Math.sin(a) * r, 0.16 + rnd() * 0.22); }
+  [[-0.85, 4.3, 0.22], [0.9, 4.1, 0.17], [-0.7, 3.2, 0.12], [1.55, 2.6, 0.14], [-1.6, 2.5, 0.16]].forEach(([x, z, sc]) => rock(x, z, sc));
+  // shells on the sand
+  for (let k = 0; k < 12; k++) {
+    const a = rnd() * Math.PI * 2, r = 5.0 + rnd() * 0.7, x = Math.cos(a) * r, z = Math.sin(a) * r;
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), mat(['#ffd3de', '#fff1e2', '#ffc8a8'][k % 3]));
+    m.name = `shell_${k}`; m.scale.set(1, 0.5, 1.3); m.position.set(x, gy(x, z) + 0.01, z); m.rotation.y = rnd() * 6; nature.add(P(m));
+  }
+  // bushes, flowers and grass tufts around the entrance, café base and shore
+  let pi = 0;
+  const bush = (x, z, sc = 1) => {
+    const g = new THREE.Group(); g.position.set(x, gy(x, z), z); nature.add(g);
+    for (let k = 0; k < 4; k++) {
+      const m = new THREE.Mesh(new THREE.IcosahedronGeometry(0.2 * sc * (0.8 + rnd() * 0.4), 1), mat(['#4cb85a', '#3fa84f', '#62c76a'][k % 3]));
+      m.name = `plant_bush_${pi}_${k}`; m.position.set((rnd() - 0.5) * 0.35 * sc, 0.13 * sc + rnd() * 0.08, (rnd() - 0.5) * 0.3 * sc); m.castShadow = true; g.add(P(m));
+    }
+    if (rnd() > 0.4) for (let k = 0; k < 3; k++) { const f = new THREE.Mesh(new THREE.IcosahedronGeometry(0.045, 0), mat(['#ff6f91', '#ffd166', '#fff3e6'][k])); f.name = `plant_bush_flower_${pi}_${k}`; f.position.set((rnd() - 0.5) * 0.4 * sc, 0.3 * sc, (rnd() - 0.5) * 0.35 * sc); g.add(P(f)); }
+    pi++;
+  };
+  const flower = (x, z) => {
+    const y = gy(x, z), stem = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.01, 0.22, 5), mat('#3fa84f'));
+    stem.name = `plant_flower_stem_${pi}`; stem.position.set(x, y + 0.11, z); nature.add(P(stem));
+    const bl = new THREE.Mesh(new THREE.IcosahedronGeometry(0.05, 0), mat(['#ff6f91', '#ffd166', '#ff9ec0', '#fff3e6', '#b48cff'][pi % 5]));
+    bl.name = `plant_flower_${pi++}`; bl.position.set(x, y + 0.24, z); nature.add(P(bl));
+  };
+  const tuft = (x, z) => {
+    const g = new THREE.Group(); g.position.set(x, gy(x, z), z); nature.add(g);
+    for (let k = 0; k < 4; k++) { const b = new THREE.Mesh(new THREE.ConeGeometry(0.025, 0.2 + rnd() * 0.12, 4), mat(k % 2 ? '#56c25a' : '#3fae4c')); b.name = `plant_grass_${pi}_${k}`; b.position.set((rnd() - 0.5) * 0.12, 0.1, (rnd() - 0.5) * 0.12); b.rotation.set((rnd() - 0.5) * 0.6, 0, (rnd() - 0.5) * 0.6); g.add(P(b)); }
+    pi++;
+  };
+  [[-1.75, 1.0], [1.75, 1.05], [-2.75, -0.6], [2.75, -0.4], [-2.6, -2.9], [2.65, -3.0], [-0.95, 3.6], [1.0, 3.4], [-4.0, 1.2], [4.0, 0.8], [-2.0, 4.1], [2.4, 4.2]].forEach(([x, z], i) => bush(x, z, 0.8 + (i % 3) * 0.2));
+  for (let k = 0; k < 26; k++) { const side = k % 2 ? 1 : -1, x = side * (0.45 + rnd() * 1.1), z = 1.1 + rnd() * 3.2; flower(x, z); }
+  for (let k = 0; k < 20; k++) { const a = rnd() * Math.PI * 2, r = 2.6 + rnd() * 2.2; const x = Math.cos(a) * r, z = Math.sin(a) * r - 0.4; if (Math.abs(x) < 0.5 && z > 0.8) continue; if (Math.abs(x - CAFE.x) < 2.6 && Math.abs(z - CAFE.z) < 2.2) { tuft(x * 1.15, z); continue; } tuft(x, z); }
+  // grass tufts hugging the café base
+  for (let k = 0; k < 14; k++) { const sx = k % 2 ? 1 : -1; tuft(sx * (CAFE.w / 2 + 0.28), CAFE.z - 1.8 + (k >> 1) * 0.55); }
 
   // ---------- café shell: ONE set of walls with real arched openings ----------
   const cafe = new THREE.Group(); cafe.name = 'cafe'; cafe.position.set(CAFE.x, FLOOR_Y, CAFE.z); world.add(cafe);
@@ -96,19 +153,19 @@ export function buildIsland(scene) {
   const WIN = { w: 1.05, y0: 0.82, spring: 1.62 };       // arched windows: sill 0.82, arch top 2.145
   const DOOR = { spring: 1.55 };                          // door arch top 2.2
 
-  box('cafe_floor', w - 0.05, 0.06, d - 0.05, '#d9a477', 0, 0.03, 0, cafe);
+  box('floor', w - 0.05, 0.06, d - 0.05, '#d9a477', 0, 0.03, 0, cafe);
   // floor tiles (checker) for a cosy café feel
   const tileTex = textTexture(256, 256, (g) => { g.fillStyle = '#f7e4cf'; g.fillRect(0, 0, 256, 256); g.fillStyle = '#e7b48f'; for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) if ((i + j) % 2) g.fillRect(i * 32, j * 32, 32, 32); });
   tileTex.wrapS = tileTex.wrapT = THREE.RepeatWrapping; tileTex.repeat.set(2.3, 1.9);
   const tiles = new THREE.Mesh(new THREE.PlaneGeometry(w - 0.2, d - 0.2), new THREE.MeshLambertMaterial({ map: tileTex }));
-  tiles.name = 'cafe_floor_tiles'; tiles.rotation.x = -Math.PI / 2; tiles.position.y = 0.065; tiles.receiveShadow = true; cafe.add(P(tiles));
+  tiles.name = 'cafe_tiles'; tiles.rotation.x = -Math.PI / 2; tiles.position.y = 0.065; tiles.receiveShadow = true; cafe.add(P(tiles));
 
   // front wall: door notch + two arched window holes
   const fs = new THREE.Shape(); const dr = door / 2;
   fs.moveTo(-w / 2, 0); fs.lineTo(-dr, 0); fs.lineTo(-dr, DOOR.spring); fs.absarc(0, DOOR.spring, dr, Math.PI, 0, true);
   fs.lineTo(dr, 0); fs.lineTo(w / 2, 0); fs.lineTo(w / 2, h); fs.lineTo(-w / 2, h); fs.lineTo(-w / 2, 0);
   fs.holes.push(archHole(-winX, WIN.y0, WIN.w, WIN.spring), archHole(winX, WIN.y0, WIN.w, WIN.spring));
-  meshOf('cafe_wall_front', extrude(fs, t), wall, cafe).position.z = d / 2;
+  meshOf('wall_front', extrude(fs, t), wall, cafe).position.z = d / 2;
   // side walls with one arched window each (sky visible from inside)
   const sideWall = (name, x, winIdx) => {
     const s = new THREE.Shape(); s.moveTo(-d / 2, 0); s.lineTo(d / 2, 0); s.lineTo(d / 2, h); s.lineTo(-d / 2, h); s.lineTo(-d / 2, 0);
@@ -116,39 +173,45 @@ export function buildIsland(scene) {
     const m = meshOf(name, extrude(s, t), wall, cafe); m.rotation.y = Math.PI / 2; m.position.x = x;
     const f = meshOf(`window_${winIdx}`, extrude(archFrame(-0.55, WIN.y0, WIN.w, WIN.spring, 0.09), t + 0.08, 0.015), new THREE.MeshBasicMaterial(), cafe);
     f.rotation.y = Math.PI / 2; f.position.x = x;
-    const sill = box(`window_sill_${winIdx}`, 0.3, 0.07, WIN.w + 0.3, trim, x, WIN.y0 - 0.02, 0.55, cafe); P(sill);
+    const sill = box(`sill_${winIdx}`, 0.3, 0.07, WIN.w + 0.3, trim, x, WIN.y0 - 0.02, 0.55, cafe); P(sill);
   };
-  sideWall('cafe_wall_left', -w / 2, 2); sideWall('cafe_wall_right', w / 2, 3);
-  box('cafe_wall_back', w, h, t, wall, 0, h / 2, -d / 2, cafe);
-  box('cafe_inner_back', w - 0.3, h - 0.1, 0.02, '#ffe9d6', 0, h / 2, -d / 2 + 0.08, cafe);
+  sideWall('wall_left', -w / 2, 2); sideWall('wall_right', w / 2, 3);
+  box('wall_back', w, h, t, wall, 0, h / 2, -d / 2, cafe);
+  box('wall_inner_back', w - 0.3, h - 0.1, 0.02, '#ffe9d6', 0, h / 2, -d / 2 + 0.08, cafe);
   // wainscot band inside (two-tone walls)
   P(box('cafe_wainscot_back', w - 0.3, 0.9, 0.03, '#9ed9cc', 0, 0.45, -d / 2 + 0.1, cafe));
   // front window frames (named window_* for the look layer: warm glowing arches) + sills + door frame
   [-1, 1].forEach((sg, i) => {
     meshOf(`window_${i}`, extrude(archFrame(sg * winX, WIN.y0, WIN.w, WIN.spring, 0.09), t + 0.08, 0.015), new THREE.MeshBasicMaterial(), cafe).position.z = d / 2;
-    P(box(`window_sill_${i}`, WIN.w + 0.3, 0.07, 0.34, trim, sg * winX, WIN.y0 - 0.02, d / 2 + 0.04, cafe));
-    P(box(`window_box_${i}`, WIN.w + 0.1, 0.18, 0.2, pink, sg * winX, WIN.y0 - 0.16, d / 2 + 0.2, cafe));
+    P(box(`sill_${i}`, WIN.w + 0.3, 0.07, 0.34, trim, sg * winX, WIN.y0 - 0.02, d / 2 + 0.04, cafe));
+    P(box(`planter_${i}`, WIN.w + 0.1, 0.18, 0.2, pink, sg * winX, WIN.y0 - 0.16, d / 2 + 0.2, cafe));
     for (let k = 0; k < 5; k++) {
       const fl = new THREE.Mesh(new THREE.IcosahedronGeometry(0.075, 1), mat(['#ff6f91', '#ffd166', '#fff3e6', '#ff9ec0', '#9be37a'][k]));
-      fl.name = `window_flower_${i}_${k}`; fl.position.set(sg * winX - 0.4 + k * 0.2, WIN.y0 - 0.02 + (k % 2) * 0.04, d / 2 + 0.2); cafe.add(P(fl));
+      fl.name = `flower_${i}_${k}`; fl.position.set(sg * winX - 0.4 + k * 0.2, WIN.y0 - 0.02 + (k % 2) * 0.04, d / 2 + 0.2); cafe.add(P(fl));
     }
   });
+  // glass panes in all four arched openings (look layer: glass_*)
+  const paneGeo = new THREE.ShapeGeometry((() => { const s = new THREE.Shape(); const r = WIN.w / 2;
+    s.moveTo(-r, WIN.y0); s.lineTo(r, WIN.y0); s.lineTo(r, WIN.spring); s.absarc(0, WIN.spring, r, 0, Math.PI, false); s.lineTo(-r, WIN.y0); return s; })(), 24);
+  [-1, 1].forEach((sg, i) => { const g = new THREE.Mesh(paneGeo, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.1 })); g.name = `glass_front_${i}`; g.position.set(sg * winX, 0, d / 2); cafe.add(P(g)); });
+  [-1, 1].forEach((sg, i) => { const g = new THREE.Mesh(paneGeo, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.1 })); g.name = `glass_side_${i}`; g.rotation.y = Math.PI / 2; g.position.set(sg * w / 2, 0, 0.55); cafe.add(P(g)); });
   P(meshOf('door_frame', extrude(archFrame(0, 0.09, door, DOOR.spring, 0.1), t + 0.1, 0.015), trim, cafe)).position.z = d / 2;
 
   // arched (barrel-vault) pink roof over the same shell
   const RX = w / 2, RY = 1.25, OV = 0.28;
   const rs = new THREE.Shape(); rs.absellipse(0, 0, RX + OV, RY + OV * 0.8, 0, Math.PI, false);
-  rs.lineTo(-RX + 0.02, 0); rs.absellipse(0, 0, RX - 0.02, RY, Math.PI, 0, true); rs.lineTo(RX + OV, 0);
+  rs.lineTo(-RX + 0.02, 0); rs.absellipse(0, 0, RX - 0.02, RY, Math.PI, 0, true);
   const roof = meshOf('cafe_roof', extrude(rs, d + 0.7, 0.06), pink, cafe); roof.position.set(0, h, 0);
   // cream underside lining visible from inside
-  const vaultGeo = new THREE.CylinderGeometry(RX - 0.03, RX - 0.03, d - 0.1, 40, 1, true, Math.PI / 2, Math.PI);
-  vaultGeo.rotateX(Math.PI / 2); vaultGeo.scale(1, RY / RX, 1);
-  const vm = mat('#fff1e2'); vm.side = THREE.BackSide;
-  P(meshOf('cafe_vault_inner', vaultGeo, vm, cafe)).position.y = h;
+  const vs = new THREE.Shape(); vs.absellipse(0, 0, RX - 0.03, RY - 0.01, 0, Math.PI, false);
+  vs.lineTo(-RX + 0.1, 0); vs.absellipse(0, 0, RX - 0.1, RY - 0.08, Math.PI, 0, true);
+  const vaultGeo = extrude(vs, d - 0.12, 0);
+  const vm = mat('#fff1e2');
+  P(meshOf('ceiling_vault', vaultGeo, vm, cafe)).position.y = h;
   // gable ends (fill the arch above the walls)
   const gs = new THREE.Shape(); gs.absellipse(0, 0, RX, RY, 0, Math.PI, false); gs.lineTo(RX, 0);
-  const gf = meshOf('cafe_gable_front', extrude(gs, t, 0.02), wall, cafe); gf.position.set(0, h, d / 2);
-  const gb = meshOf('cafe_gable_back', extrude(gs, t, 0.02), wall, cafe); gb.position.set(0, h, -d / 2);
+  const gf = meshOf('wall_gable_front', extrude(gs, t, 0.02), wall, cafe); gf.position.set(0, h, d / 2);
+  const gb = meshOf('wall_gable_back', extrude(gs, t, 0.02), wall, cafe); gb.position.set(0, h, -d / 2);
   P(gf); P(gb);
   // scalloped trim along the roof's front edge
   for (let k = 0; k <= 16; k++) {
@@ -173,8 +236,8 @@ export function buildIsland(scene) {
   // ---------- interior ----------
   const CZ = -d / 2 + 1.0, TOP = 1.065;
   // chunky counter: cream body, pink slats, wood top
-  P(box('counter', 3.0, 0.98, 0.6, '#fff1e2', 0, 0.49, CZ, cafe));
-  for (let k = 0; k < 11; k++) P(box(`counter_slat_${k}`, 0.2, 0.78, 0.05, pink, -1.25 + k * 0.25, 0.5, CZ + 0.31, cafe));
+  P(box('counter_body', 3.0, 0.98, 0.6, '#fff1e2', 0, 0.49, CZ, cafe));
+  for (let k = 0; k < 11; k++) P(box(`counter_panel_${k}`, 0.2, 0.78, 0.05, pink, -1.25 + k * 0.25, 0.5, CZ + 0.31, cafe));
   P(box('counter_kick', 3.0, 0.1, 0.06, wood, 0, 0.06, CZ + 0.32, cafe));
   P(box('counter_top', 3.2, 0.08, 0.76, wood, 0, 1.025, CZ, cafe));
 
@@ -216,36 +279,49 @@ export function buildIsland(scene) {
 
   // chalkboard menu with wood frame + shelves of mugs
   const board = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.0), new THREE.MeshBasicMaterial({ map: makeMenuTexture(), toneMapped: false }));
-  board.name = 'menu_board'; board.position.set(0, 1.95, -d / 2 + 0.12); cafe.add(board);
+  board.name = 'menu_board'; board.position.set(0, 1.95, -d / 2 + 0.14); cafe.add(board);
   P(box('menu_frame', 2.36, 1.16, 0.04, wood, 0, 1.95, -d / 2 + 0.1, cafe));
   [-1, 1].forEach((sg, i) => [1.45, 1.95].forEach((y, j) => {
     P(box(`shelf_${i}_${j}`, 0.7, 0.05, 0.22, wood, sg * 1.7, y, -d / 2 + 0.2, cafe));
-    for (let k = 0; k < 3; k++) glb(cafe, 'mug', `shelf_mug_${i}_${j}_${k}`, { x: sg * 1.7 - 0.22 + k * 0.22, y: y + 0.025, z: -d / 2 + 0.2, h: 0.13, ry: Math.PI });
+    for (let k = 0; k < 3; k++) glb(cafe, 'mug', `mug_shelf_${i}_${j}_${k}`, { x: sg * 1.7 - 0.22 + k * 0.22, y: y + 0.025, z: -d / 2 + 0.2, h: 0.13, ry: Math.PI });
   }));
-  glb(cafe, 'plantSmall2', 'shelf_plant_0', { x: -1.7, y: 2.0, z: -d / 2 + 0.2, h: 0.3 });
+  glb(cafe, 'plantSmall2', 'plant_shelf_0', { x: -1.7, y: 2.0, z: -d / 2 + 0.2, h: 0.3 });
+
+  // pink neon on the back wall (heart + coffee cup) up in the vault gable
+  const heart = []; for (let k = 0; k <= 64; k++) { const a = (k / 64) * Math.PI * 2;
+    heart.push(new THREE.Vector3(16 * Math.sin(a) ** 3 * 0.018, (13 * Math.cos(a) - 5 * Math.cos(2 * a) - 2 * Math.cos(3 * a) - Math.cos(4 * a)) * 0.018, 0)); }
+  const nh = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(heart, true), 96, 0.022, 8, true), new THREE.MeshBasicMaterial({ color: '#ff8ab8' }));
+  nh.name = 'neon_wall_heart'; nh.position.set(-0.55, h + 0.55, -d / 2 + 0.11); cafe.add(P(nh));
+  const cupPts = [[-0.22, 0.2], [-0.18, -0.18], [0.18, -0.18], [0.22, 0.2]].map(([x, y]) => new THREE.Vector3(x, y, 0));
+  const nc = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(cupPts, false, 'catmullrom', 0.1), 40, 0.022, 8), nh.material);
+  nc.name = 'neon_wall_cup'; nc.position.set(0.55, h + 0.5, -d / 2 + 0.11); cafe.add(P(nc));
+  const handle = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.022, 8, 24, Math.PI * 1.2), nh.material);
+  handle.name = 'neon_wall_cup_handle'; handle.rotation.z = -Math.PI * 0.6; handle.position.set(0.78, h + 0.52, -d / 2 + 0.11); cafe.add(P(handle));
+  [-0.08, 0.04, 0.16].forEach((x, k) => { const st = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0.04, 0.08, 0), new THREE.Vector3(-0.02, 0.16, 0), new THREE.Vector3(0.02, 0.24, 0)]), 16, 0.016, 6), nh.material);
+    st.name = `neon_wall_steam_${k}`; st.position.set(0.55 + x, h + 0.76, -d / 2 + 0.11); cafe.add(P(st)); });
 
   // pendant lamps (amber) hanging from the vault
   const lampGlow = new THREE.MeshBasicMaterial({ color: '#ffd38a', toneMapped: false });
   [-0.95, 0, 0.95].forEach((x, i) => {
     const ceil = h + RY * Math.sqrt(1 - (x / RX) ** 2), y = 2.3;
-    P(cyl(`pendant_cord_${i}`, 0.008, 0.008, ceil - y, '#3a2b25', x, y + (ceil - y) / 2, CZ + 0.1, cafe, 6));
+    P(cyl(`lamp_cord_${i}`, 0.008, 0.008, ceil - y, '#3a2b25', x, y + (ceil - y) / 2, CZ + 0.1, cafe, 6));
     const shade = new THREE.Mesh(new THREE.SphereGeometry(0.2, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#ffad4d', side: THREE.DoubleSide, toneMapped: false }));
-    shade.name = `pendant_shade_${i}`; shade.position.set(x, y - 0.12, CZ + 0.1); cafe.add(P(shade));
-    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.075, 16, 12), lampGlow); bulb.name = `pendant_bulb_${i}`; bulb.position.set(x, y - 0.15, CZ + 0.1); cafe.add(P(bulb));
+    shade.name = `lamp_shade_${i}`; shade.position.set(x, y - 0.12, CZ + 0.1); cafe.add(P(shade));
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.075, 16, 12), lampGlow); bulb.name = `lamp_bulb_${i}`; bulb.position.set(x, y - 0.15, CZ + 0.1); cafe.add(P(bulb));
   });
   const lamp = new THREE.PointLight('#ffb36b', 7, 6, 1.6); lamp.position.set(0, 2.0, CZ + 0.4); cafe.add(lamp);
   const lamp2 = new THREE.PointLight('#ffb36b', 4, 5, 1.6); lamp2.position.set(0, 1.9, 0.9); cafe.add(lamp2);
 
   // pink bar stools at the counter (Kenney stoolBar, recoloured)
   const stoolCol = { carpet: '#ff8fab', wood: '#8a5a3c' };
-  [-1.15, -0.75, 0.75, 1.15].forEach((x, i) => glb(cafe, 'stoolBar', `stool_${i}`, { x, z: CZ + 0.62, h: 0.8, colors: stoolCol }));
+  [-1.15, -0.75, 0.75, 1.15].forEach((x, i) => glb(cafe, 'stoolBar', `stool_${i}`, { x, z: CZ + 0.62, h: 0.8, colors: stoolCol, parts: { carpet: `stool_seat_${i}`, wood: `stool_leg_${i}` } }));
   // café tables + chairs by the side windows
   [-1, 1].forEach((sg, i) => {
     const tx = sg * 1.55, tz = 0.55;
-    glb(cafe, 'tableRound', `cafe_table_${i}`, { x: tx, z: tz, h: 0.78, colors: { wood: '#fff1e2' } });
-    glb(cafe, 'chairRounded', `cafe_chair_${i}_0`, { x: tx, z: tz + 0.62, h: 0.92, ry: Math.PI, colors: { wood: i ? '#9ed9cc' : '#ffd166' } });
-    glb(cafe, 'chairRounded', `cafe_chair_${i}_1`, { x: tx, z: tz - 0.62, h: 0.92, colors: { wood: i ? '#9ed9cc' : '#ffd166' } });
-    glb(cafe, i ? 'cup-saucer' : 'mug', `cafe_table_cup_${i}`, { x: tx + 0.1, y: 0.79, z: tz, h: 0.1 });
+    glb(cafe, 'tableRound', `table_cafe_${i}`, { x: tx, z: tz, h: 0.78, colors: { wood: '#fff1e2' } });
+    glb(cafe, 'chairRounded', `chair_cafe_${i}_0`, { x: tx, z: tz + 0.62, h: 0.92, ry: Math.PI, colors: { wood: i ? '#9ed9cc' : '#ffd166' } });
+    glb(cafe, 'chairRounded', `chair_cafe_${i}_1`, { x: tx, z: tz - 0.62, h: 0.92, colors: { wood: i ? '#9ed9cc' : '#ffd166' } });
+    glb(cafe, i ? 'cup-saucer' : 'mug', `cup_cafe_${i}`, { x: tx + 0.1, y: 0.79, z: tz, h: 0.1 });
     glb(cafe, 'plantSmall1', `sill_plant_${i}`, { x: sg * (w / 2 - 0.05), y: WIN.y0 + 0.02, z: 0.15, h: 0.28 });
     glb(cafe, 'pottedPlant', `cafe_plant_${i}`, { x: sg * 1.9, z: d / 2 - 0.35, h: 1.1, colors: { wood: '#e8896a', woodDark: '#7a4f33', plant: '#4cb85a' } });
   });
@@ -263,13 +339,13 @@ export function buildIsland(scene) {
 
   // ---------- outdoor seating: umbrella tables ----------
   [[-2.7, 1.9], [2.7, 1.9]].forEach(([x, z], i) => {
-    glb(world, 'tableRound', `table_${i}`, { x, y: FLOOR_Y, z, h: 0.76, colors: { wood: '#fff3e6' } });
-    [0, 1].forEach((k) => glb(world, 'chairRounded', `table_chair_${i}_${k}`, { x: x + (k ? 0.65 : -0.65), y: FLOOR_Y, z, h: 0.92, ry: k ? -Math.PI / 2 : Math.PI / 2, colors: { wood: i ? '#ff9ec0' : '#8fd8c8' } }));
+    glb(world, 'tableRound', `table_patio_${i}`, { x, y: FLOOR_Y + 0.05, z, h: 0.76, colors: { wood: '#fff3e6' } });
+    [0, 1].forEach((k) => glb(world, 'chairRounded', `chair_patio_${i}_${k}`, { x: x + (k ? 0.65 : -0.65), y: FLOOR_Y, z, h: 0.92, ry: k ? -Math.PI / 2 : Math.PI / 2, colors: { wood: i ? '#ff9ec0' : '#8fd8c8' } }));
     P(cyl(`umb_pole_${i}`, 0.025, 0.025, 1.6, '#ffffff', x, FLOOR_Y + 1.15, z, world, 12));
-    const um = new THREE.Mesh(stripedCone(0.95, 0.42, i ? '#ffd166' : '#ff7a8a', '#fff3e6'), new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
+    const um = new THREE.Mesh(stripedCone(0.95, 0.42, i ? '#ffd166' : '#ff7a8a', '#fff3e6'), new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
     um.name = `umbrella_${i}`; um.position.set(x, FLOOR_Y + 2.0, z); um.castShadow = true; world.add(P(um));
     const fin = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 8), mat('#ffffff')); fin.name = `umbrella_finial_${i}`; fin.position.set(x, FLOOR_Y + 2.24, z); world.add(P(fin));
-    glb(world, i ? 'cup-saucer' : 'cup-coffee', `table_cup_${i}`, { x: x + 0.12, y: FLOOR_Y + 0.77, z: z + 0.05, h: 0.1 });
+    glb(world, i ? 'cup-saucer' : 'cup-coffee', `cup_patio_${i}`, { x: x + 0.12, y: FLOOR_Y + 0.77, z: z + 0.05, h: 0.1 });
     addCol(x, z, 0.9, 0.9);
   });
   // A-frame chalkboard + potted plants by the door
