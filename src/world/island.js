@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { createToonMaterial } from '../look/index.js';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
 export const ISLAND_RADIUS = 6;
 const R = ISLAND_RADIUS;
@@ -8,10 +9,11 @@ const CAFE = { x: 0, z: -1.2, w: 4.6, d: 3.8, h: 2.7, t: 0.14, door: 1.3 };
 
 const mat = (c) => createToonMaterial(c);
 function box(name, w, h, d, color, x, y, z, parent) {
-  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), typeof color === 'string' ? mat(color) : color);
+  const bev = Math.min(0.06, Math.min(w, h, d) * 0.35);
+  const m = new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 4, bev), typeof color === 'string' ? mat(color) : color);
   m.name = name; m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; parent.add(m); return m;
 }
-function cyl(name, rt, rb, h, color, x, y, z, parent, seg = 12) {
+function cyl(name, rt, rb, h, color, x, y, z, parent, seg = 32) {
   const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), mat(color));
   m.name = name; m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; parent.add(m); return m;
 }
@@ -38,7 +40,7 @@ export function buildIsland(scene) {
     pts.push(new THREE.Vector2(Math.max(R * Math.cos(t * Math.PI * 0.5) * (1 - 0.08 * t), 0.05), Math.sin(t * Math.PI * 0.5) * 1.35 - 0.25));
   }
   pts.push(new THREE.Vector2(0.01, 1.15));
-  const ground = new THREE.Mesh(new THREE.LatheGeometry(pts, 72), new THREE.MeshBasicMaterial());
+  const ground = new THREE.Mesh(new THREE.LatheGeometry(pts, 128), new THREE.MeshBasicMaterial());
   ground.name = 'ground'; ground.receiveShadow = true; world.add(ground);
 
   // plaza deck the café + seating sit on
@@ -77,18 +79,18 @@ export function buildIsland(scene) {
   box('espresso', 0.55, 0.45, 0.35, '#b8c3cc', -0.8, 1.29, -d / 2 + 0.95, cafe);
   box('espresso_top', 0.6, 0.06, 0.4, '#3a2b25', -0.8, 1.54, -d / 2 + 0.95, cafe);
   [0.35, 0.65, 0.95].forEach((x, i) => {
-    cyl(`cup_${i}`, 0.07, 0.055, 0.14, ['#ffffff', '#ffd6e2', '#cfeee9'][i], x, 1.14, -d / 2 + 0.9, cafe, 10);
+    cyl(`cup_${i}`, 0.07, 0.055, 0.14, ['#ffffff', '#ffd6e2', '#cfeee9'][i], x, 1.14, -d / 2 + 0.9, cafe, 32);
   });
   const menuTex = makeMenuTexture();
   const board = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.0), new THREE.MeshBasicMaterial({ map: menuTex, toneMapped: false }));
   board.name = 'menu_board'; board.position.set(0, 1.95, -d / 2 + 0.1); cafe.add(board);
   [-1.2, 1.4].forEach((x, i) => {
-    cyl(`stool_seat_${i}`, 0.22, 0.22, 0.07, '#ff8fa8', x, 0.62, d / 2 - 0.9, cafe, 14);
-    cyl(`stool_leg_${i}`, 0.04, 0.05, 0.6, '#5a3d2c', x, 0.3, d / 2 - 0.9, cafe, 6);
-    cyl(`ttable_${i}`, 0.35, 0.35, 0.05, '#f6e3cc', x + (i ? -0.55 : 0.55), 0.82, d / 2 - 0.9, cafe, 16);
-    cyl(`ttable_leg_${i}`, 0.04, 0.05, 0.8, '#5a3d2c', x + (i ? -0.55 : 0.55), 0.4, d / 2 - 0.9, cafe, 6);
+    cyl(`stool_seat_${i}`, 0.22, 0.22, 0.07, '#ff8fa8', x, 0.62, d / 2 - 0.9, cafe, 32);
+    cyl(`stool_leg_${i}`, 0.04, 0.05, 0.6, '#5a3d2c', x, 0.3, d / 2 - 0.9, cafe, 16);
+    cyl(`ttable_${i}`, 0.35, 0.35, 0.05, '#f6e3cc', x + (i ? -0.55 : 0.55), 0.82, d / 2 - 0.9, cafe, 32);
+    cyl(`ttable_leg_${i}`, 0.04, 0.05, 0.8, '#5a3d2c', x + (i ? -0.55 : 0.55), 0.4, d / 2 - 0.9, cafe, 16);
   });
-  const lampShade = new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.25, 14, 1, true), new THREE.MeshBasicMaterial({ color: '#ffcf8a', side: THREE.DoubleSide }));
+  const lampShade = new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.25, 32, 1, true), new THREE.MeshBasicMaterial({ color: '#ffcf8a', side: THREE.DoubleSide }));
   lampShade.name = 'lamp_shade'; lampShade.position.set(0, h - 0.45, -0.2); cafe.add(lampShade);
   const lamp = new THREE.PointLight('#ffb36b', 7, 6, 1.6); lamp.position.set(0, h - 0.6, -0.2); cafe.add(lamp);
   const lamp2 = new THREE.PointLight('#ffb36b', 4, 4, 1.6); lamp2.position.set(0, 1.6, -d / 2 + 0.9); cafe.add(lamp2);
@@ -104,10 +106,10 @@ export function buildIsland(scene) {
 
   // ---------- outdoor seating ----------
   [[-2.7, 1.9], [2.7, 1.9]].forEach(([x, z], i) => {
-    cyl(`table_${i}`, 0.42, 0.42, 0.06, '#fff3e6', x, FLOOR_Y + 0.72, z, world, 14);
-    cyl(`table_leg_${i}`, 0.04, 0.05, 0.7, '#5a3d2c', x, FLOOR_Y + 0.36, z, world, 6);
-    cyl(`umb_pole_${i}`, 0.025, 0.025, 1.5, '#ffffff', x, FLOOR_Y + 1.1, z, world, 6);
-    const um = new THREE.Mesh(new THREE.ConeGeometry(0.9, 0.38, 10), mat(i ? '#ffd27a' : '#8fe3d8'));
+    cyl(`table_${i}`, 0.42, 0.42, 0.06, '#fff3e6', x, FLOOR_Y + 0.72, z, world, 32);
+    cyl(`table_leg_${i}`, 0.04, 0.05, 0.7, '#5a3d2c', x, FLOOR_Y + 0.36, z, world, 16);
+    cyl(`umb_pole_${i}`, 0.025, 0.025, 1.5, '#ffffff', x, FLOOR_Y + 1.1, z, world, 16);
+    const um = new THREE.Mesh(new THREE.ConeGeometry(0.9, 0.38, 32), mat(i ? '#ffd27a' : '#8fe3d8'));
     um.name = `umbrella_${i}`; um.position.set(x, FLOOR_Y + 1.9, z); um.castShadow = true; world.add(um);
     addCol(x, z, 0.9, 0.9);
   });
@@ -124,7 +126,7 @@ export function buildIsland(scene) {
   const strand = (a, b, sag, off) => {
     for (let k = 0; k <= 10; k++) {
       const tt = k / 10, p = a.clone().lerp(b, tt); p.y -= Math.sin(tt * Math.PI) * sag;
-      const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), new THREE.MeshBasicMaterial());
+      const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.06, 16, 12), new THREE.MeshBasicMaterial());
       bulb.name = `lights_${off + k}`; bulb.position.copy(p); bulbs.add(bulb);
     }
   };

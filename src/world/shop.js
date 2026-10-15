@@ -24,9 +24,9 @@ export function createShop(camera, island) {
 
   // cup held in view
   const cup = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.045, 0.13, 16), new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.6 }));
-  const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.062, 0.052, 0.05, 16), new THREE.MeshStandardMaterial({ color: '#ff8fa8' }));
-  const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.064, 0.064, 0.02, 16), new THREE.MeshStandardMaterial({ color: '#3a2b25' }));
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.045, 0.13, 48), new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.6 }));
+  const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.062, 0.052, 0.05, 48), new THREE.MeshStandardMaterial({ color: '#ff8fa8' }));
+  const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.064, 0.064, 0.02, 48), new THREE.MeshStandardMaterial({ color: '#3a2b25' }));
   lid.position.y = 0.075; sleeve.position.y = -0.005; cup.add(body, sleeve, lid);
   cup.position.set(0.24, -0.2, -0.62); cup.rotation.set(0.1, 0, -0.1); cup.visible = false;
   camera.add(cup);
