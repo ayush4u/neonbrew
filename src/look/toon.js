@@ -1,12 +1,12 @@
 import * as THREE from 'three';
 import { PALETTE, SUN_DIR } from './palette.js';
 const sun = new THREE.Vector3(...SUN_DIR).normalize();
-// shared toon lighting snippet (no scene lights needed -> cheap, consistent)
+// shared toon lighting snippet — lifted shadows for a cheerful sunny feel
 export const TOON = `
   uniform vec3 uSun, uShadow;
   vec3 toon(vec3 base, vec3 N){ float l = dot(normalize(N), uSun);
-    float b = l > 0.5 ? 1.0 : (l > 0.05 ? 0.78 : 0.58);
-    vec3 c = mix(uShadow, base, b) ; return c + base*0.08*step(0.85,l); }`;
+    float b = l > 0.35 ? 1.0 : (l > -0.05 ? 0.84 : 0.68);
+    vec3 c = mix(uShadow, base, b) ; return c + base*0.12*step(0.7,l); }`;
 export function createGroundMaterial({ islandRadius = 6 } = {}) {
   return new THREE.ShaderMaterial({
     uniforms: { uSun: { value: sun }, uShadow: { value: PALETTE.shadow }, uSand: { value: PALETTE.sand }, uGrass: { value: PALETTE.grass }, uRadius: { value: islandRadius } },

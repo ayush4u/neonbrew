@@ -16,20 +16,20 @@ export function createWaterMaterial({ islandRadius = 6 } = {}) {
         return mix(mix(h(i),h(i+vec2(1,0)),f.x), mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x), f.y); }
       void main(){
         float r = length(vW.xz); float d = r - uRadius;
-        vec3 col = mix(uShallow, uDeep, smoothstep(0.0, 9.0, d));
-        // toon glints
+        vec3 col = mix(uShallow, uDeep, smoothstep(0.0, 10.0, d));
+        // soft cheerful glints
         float g = n(vW.xz*1.6 + vec2(uTime*0.3, uTime*0.2)) * n(vW.xz*2.3 - uTime*0.25);
-        col += step(0.62, g) * 0.05 * (1.0 - smoothstep(20.0, 50.0, r));
-        // foam rings travelling outward
+        col += step(0.68, g) * 0.07 * (1.0 - smoothstep(20.0, 50.0, r));
+        // gentle soft foam rings — lower contrast than v2
         float wob = n(vW.xz*1.5 + uTime*0.4)*0.35;
-        float ring = fract((d + wob)*0.7 - uTime*0.35);
-        float rings = step(0.86, ring) * smoothstep(3.2, 0.5, d);
-        float edge = step(d + wob*0.8, 0.45);
-        col = mix(col, uFoam, max(edge*0.7, rings*0.45));
-        // horizon fade to sky
+        float ring = fract((d + wob)*0.55 - uTime*0.28);
+        float rings = smoothstep(0.78, 0.92, ring) * smoothstep(0.98, 0.9, ring) * smoothstep(3.5, 0.6, d);
+        float edge = smoothstep(0.55, 0.05, d + wob*0.6) * smoothstep(-0.4, 0.15, d + wob*0.6);
+        col = mix(col, uFoam, max(edge*0.55, rings*0.35));
+        // warm horizon fade
         vec3 v = cameraPosition - vW; float fres = pow(1.0 - clamp(normalize(v).y, 0.0, 1.0), 4.0);
-        col = mix(col, uSky, fres*0.2);
-        col = mix(col, uSky, smoothstep(60.0, 150.0, r));
+        col = mix(col, uSky, fres*0.08);
+        col = mix(col, uSky, smoothstep(90.0, 200.0, r)*0.35);
         gl_FragColor = vec4(col, 1.0);
       }`,
   });
